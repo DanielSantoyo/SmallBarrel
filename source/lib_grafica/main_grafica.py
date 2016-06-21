@@ -58,24 +58,28 @@ class GraphicHandler(threading.Thread):
         self.counter = 0#contatore per aggiornare le informazioni dei tile...
         ################## display ###############################
         self.DISPLAYSURF = pygame.display.set_mode((W, H), DOUBLEBUF | HWSURFACE, 32)
-        pygame.display.set_caption('SmallBarrel-Flatlandia')
-        self.basicFont = pygame.font.SysFont("Ubuntu",DIMCHAR)
+        pygame.display.set_caption('SmallBarrel-Miners')
+        #self.basicFont = pygame.font.SysFont("Ubuntu",DIMCHAR)
         self.display = pygame.Surface((W,H))#per settare lo sfondo
         self.displayRect = self.display.get_rect()
-        
+        self.selection = False
+        self.display_selection = False
         ################## RAM ###########################
         self.offsetx = 0
         self.offsety = 0
         print "[GRAPHICS]: load RAM\t"
         self.matrice_tiles = None #chunk tiles (matrice[z][y][x])
-        self.lista = []
+        
         self.background = self.carica_immagine('background')
         self.backgroundRect = self.background.get_rect()
         self.backgroundRect.topleft = (0,0)
+        self.water = None#self.carica_immagine(r'results/sea')
         self.mappa = [] #array di immagini da caricare
         self.mappa_up = []#altre immagini da caricare
         self.mappaRect = None#self.mappa[0].get_rect()
         self.sprites = [] #vettore con gli sprite usati dagli eventi
+        self.sprite_sel = self.carica_immagine('Sel')
+        self.sprite_selRect = self.sprite_sel.get_rect()
         
     def __repr__(self):
         t = self.name + "-> Active"
@@ -87,6 +91,7 @@ class GraphicHandler(threading.Thread):
         print sys.exc_info()
 
     def carica_mappa(self):
+        '''carica le immagini del chunk dalla cartella results'''
         self.mappa = []
         self.mappa_up = []
         for z in xrange(len(self.matrice_tiles)): #dimz
@@ -96,6 +101,7 @@ class GraphicHandler(threading.Thread):
             sprite = self.carica_immagine(r"results/hill_"+str(z)+"_u",TRANSPARENCY )
             self.mappa_up.append(sprite)
         self.zlimit = z
+        #self.water = self.carica_immagine(r'results/sea')
 
     def carica_immagine(self,nome,trasp = TRANSPARENCY ):#carica un immagine
         '''carica un'immagine con colore di trasparenza 123,123,123'''
@@ -113,20 +119,18 @@ class GraphicHandler(threading.Thread):
         single_sprite.rect = single_sprite.image.get_rect()
         self.sprites.append(single_sprite)
     #def pop_single_sprite(self, indice):
-    
+
     def coordinate_iso(self,x,y,z):
         '''trasforma le coordinate da cartesiane in isometriche'''
         xo = W/2 + (x-y+1)*DX
         yo = (x+y)*DY - z*DZ + Y_OFFSET
-        #print x,y,z," -> ",xo,yo
-        return xo,yo
+        return (xo,yo)
 
     def update(self):
         '''aggiorna la grafica'''
         #disegna lo sfondo
         self.mappaRect.midbottom = (self.offsetx + W/2, self.offsety + H)
         self.display.blit(self.background,self.backgroundRect)
-
         #disegna gli eventi mobili
         sprites = []
         for sprite in self.sprites:
@@ -135,15 +139,11 @@ class GraphicHandler(threading.Thread):
             sprite.rect.x += self.offsetx
             sprite.rect.y += self.offsety
             sprites.append(sprite)
-            #print sprite.sx,sprite.sy,sprite.sz,"->",sprite.rect.midbottom
-
         ##disegna i tiles
         sprites.sort(key = lambda s: s.rect.y)#EDTI????
         sprites.sort(key = lambda s: s.sz)#EDTI????
-        #for sprite in sprites:
-            #self.display.blit(sprite.tile,sprite.rect)
-            
-        for land in xrange(self.zlimit+1):#self.mappa:
+
+        for land in xrange(self.zlimit+1):#disegna i minatori e i tile
             self.display.blit(self.mappa[land],self.mappaRect)
             for sprite in sprites:
                 if sprite.sz == land-1:
@@ -151,8 +151,10 @@ class GraphicHandler(threading.Thread):
             self.display.blit(self.mappa_up[land],self.mappaRect)
             for sprite in sprites:
                 if sprite.sz == land-1:
-                    self.display.blit(sprite.tile.subsurface(0,0,DWARF_WIDTH,DWARF_HEIGHT/2),sprite.rect)
-        
+                    self.display.blit(sprite.tile.subsurface(0,0,MINER_WIDTH,MINER_HEIGHT/2),sprite.rect)
+        if self.selection:
+            if self.display_selection:
+                self.display.blit(self.sprite_sel,self.sprite_selRect)
         
         self.DISPLAYSURF.blit(self.display,self.displayRect)
 
@@ -166,8 +168,6 @@ class GraphicHandler(threading.Thread):
                 pygame.display.update()
                 THREAD_LOCK.release()
                 self.counter =  (self.counter + 1)%FPS
-                #if self.counter == 0:
-                    #self.carica_mappa()
             except:
                 print '-'*80
                 traceback.print_exc(file=sys.stdout)
