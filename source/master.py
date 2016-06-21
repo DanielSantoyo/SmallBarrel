@@ -17,12 +17,14 @@ DEBUG = 0
 INITIALIZE = 1
 
 from lib_scribi import nomi_lingue
-from lib_eventi import nano
+from lib_eventi import minatore
 
 from lib_grafica.game_constants import *
 from lib_grows import chunk
 from lib_grows import genesi
 from lib_grafica import main_grafica
+
+from pygame import mouse
 
 class Master (threading.Thread):
     '''classe per la gestione della comunicazione tra le librerie. Thread'''
@@ -31,14 +33,14 @@ class Master (threading.Thread):
         threading.Thread.__init__(self)
         self.name = name
         self.running = True
-        self.timer = 0.5
+        self.timer = 0.01
         self.mode = mode
         self.LOG_DEBUG = False#True
-        self.dwarfs = []
+        self.miners = []
         #-----------------------------------------------------------------------------#
         # world creation
         World = genesi.World_maker('[WORLD MAKER]')
-        World.crea_montagne_perlin(20)
+        World.make_perlin_mountains(20)
         World.conservatore(20)
         self.matrice_tiles = World.start()
         #-----------------------------------------------------------------------------#
@@ -63,7 +65,7 @@ class Master (threading.Thread):
             z = 0
             while(True):
                 try:
-                    if self.ck_ostacoli.matrice[z][y][x] == ' ':
+                    if self.ck_ostacoli.matrice[z][y][x] == FREE:
                         break
                 except:
                     pass
@@ -77,18 +79,18 @@ class Master (threading.Thread):
             self.centery = y
             self.centerz = z
             
-            for i in range(NUM_DWARFS):
-                n = nano.Nano('',i)
-                n = genesi.nano_random(n)
-                self.dwarfs.append(n)
+            for i in range(NUM_MINERS):
+                n = minatore.Miner('',i)
+                n = genesi.miner_random(n)
+                self.miners.append(n)
                 self.grafica.push_single_sprite(n.grafica, n.indice)
                 
                 n.x = x
                 n.y = y
                 n.z = z 
-            print self.name + ": created %d dwarfs"%NUM_DWARFS
+            print self.name + ": created %d miners"%NUM_MINERS
             
-            for d in self.dwarfs:
+            for d in self.miners:
                 d.chunk_ostacoli = self.ck_ostacoli #puntatore al chunk ostacoli
                 d.sprite = self.grafica.sprites #puntatore agli sprites della grafica
                 d.start()
@@ -96,7 +98,41 @@ class Master (threading.Thread):
        
         self.grafica.start()# Thread
         THREAD_LOCK.release()
-        
+    
+    def iso_to_xyz(self,xpos,ypos):
+        '''trasforma le coordinate da isometriche in matriciali'''
+        #fai una cornice per il mouse...
+        if xpos < MOUSE_TH or xpos > W-MOUSE_TH:
+            return
+        if ypos < MOUSE_TH or ypos > H-MOUSE_TH:
+            return
+        #controlla dalla z massima scendendo fino a -1
+        done = False
+        z = min(D_WORLD,self.grafica.zlimit+2)
+        while done == False:
+            z -= 1
+            if z == -1:
+                break
+            x = xpos - self.grafica.offsetx - W/2
+            y = ypos - self.grafica.offsety - Y_OFFSET +z*DZ
+            xt = y - x/SQRT3
+            yt = y + x/SQRT3
+            xt = int(round(xt/DIAGONAL))
+            yt = int(round(yt/DIAGONAL))
+            if 0 <= xt and xt < W_WORLD and 0 <= yt and yt < H_WORLD:
+                if z not in self.matrice_tiles.keys():
+                    continue
+                if self.matrice_tiles[z][yt][xt] != T_VOID:
+                    done = True
+        if done:
+            self.grafica.sprite_selRect.midtop = self.grafica.coordinate_iso(yt,xt,z)
+            self.grafica.sprite_selRect.x += self.grafica.offsetx -DX
+            self.grafica.sprite_selRect.y += self.grafica.offsety -DY
+            self.grafica.display_selection = True
+
+        else:
+            self.grafica.display_selection = False
+
     def __repr__(self):
         t = self.name + "-> Active"
         return t
@@ -111,7 +147,9 @@ class Master (threading.Thread):
         while self.running:
             try:
                 sleep(self.timer)
-
+                (xm, ym) = mouse.get_pos()
+                if self.grafica.selection:
+                    self.iso_to_xyz(xm,ym)
             except:
                 print '-'*80
                 traceback.print_exc(file=sys.stdout)
@@ -121,9 +159,9 @@ class Master (threading.Thread):
 
     def __del__(self):
         self.grafica.running = False
-        print self.name + ": stopping dwarfs Threads"
-        for d in self.dwarfs:
-            d.running = False
+        print self.name + ": stopping miners Threads"
+        for m in self.miners:
+            m.running = False
         THREAD_LOCK.acquire()
         THREAD_LOCK.release()
         print "Stopping " + self.name
