@@ -28,7 +28,7 @@ from pygame import Surface
 from lib_scribi import nomi_lingue
 from lib_grafica.game_constants import *
 
-def nano_random(n): #EDIT: da sistemare
+def miner_random(n): #EDIT: da sistemare
     n.nome = nomi_lingue.nome_random(n.sesso)
     n.cognome = nomi_lingue.cognome_random()
     n.eta = randint(1,50)
@@ -76,14 +76,14 @@ class World_maker(threading.Thread):
     def __init__(self,name):
         threading.Thread.__init__(self)
         self.tiles = []
-        self.matrice = {}
+        self.matrix = {}
         self.name = name
         self.pkl_name = ""
 
-    def apri_matrice_testuale(self, filename):
+    def open_textual_matrix(self, filename):
         if os.path.isfile(filename+'.pkl'):
             print "[WORLD MAKER]: load", filename, "\t"
-            self.matrice = pickle.load( open( filename+".pkl", "rb" ) )
+            self.matrix = pickle.load( open( filename+".pkl", "rb" ) )
             load = True
             self.pkl_name = filename+'.pkl'
         else:
@@ -96,7 +96,7 @@ class World_maker(threading.Thread):
                 matr = map(lambda x: int(x),matr)
             self.pkl_name = filename+'.pkl'
             for id in range(max(matr)):
-                self.matrice[id] = [ [] for _ in range(H_WORLD)]
+                self.matrix[id] = [ [] for _ in range(H_WORLD)]
                 for y in range(H_WORLD):
                     t = []
                     for x in range(W_WORLD):
@@ -104,20 +104,20 @@ class World_maker(threading.Thread):
                         if matr[x+y*W_WORLD] >= id:
                             value = T_ERBA
                         t.append(value)
-                    self.matrice[id][y] = t
-            self.dimz = len(self.matrice)
-            self.dimy = len(self.matrice[0])
-            self.dimx = len(self.matrice[0][0])
+                    self.matrix[id][y] = t
+            self.dimz = len(self.matrix)
+            self.dimy = len(self.matrix[0])
+            self.dimx = len(self.matrix[0][0])
             load = False
-        self.maximun = len(self.matrice)
+        self.maximun = len(self.matrix)
         return load
 
     def get_dims(self):
-        self.dimz = len(self.matrice)
-        self.dimy = len(self.matrice[0])
-        self.dimx = len(self.matrice[0][0])
+        self.dimz = len(self.matrix)
+        self.dimy = len(self.matrix[0])
+        self.dimx = len(self.matrix[0][0])
 
-    def genera_montagna(self, W_WORLD,H_WORLD, nome = ""):
+    def make_mountain(self, W_WORLD,H_WORLD, nome = ""):
         '''carica una collina casuale dalla memoria ROM e prepara la matrice'''
         if nome == "":
             #verifica l'esistenza di una montagna gia' creata in graphics/results
@@ -129,65 +129,65 @@ class World_maker(threading.Thread):
                     print "[WORLD MAKER]: found "+filename+".pkl in memory... load\t"
                     break
 
-        if self.apri_matrice_testuale(nome) == False:
+        if self.open_textual_matrix(nome) == False:
             #modifica il chunk, gestisci i tile erba e la sabbia
             for z in xrange(self.dimz):
                 for y in xrange(self.dimy):
                     for x in xrange(self.dimx):
-                        if self.matrice[z][y][x] == T_VOID:
+                        if self.matrix[z][y][x] == T_VOID:
                             if z <= Z_SEA:
-                                self.matrice[z][y][x] = T_ACQUA
+                                self.matrix[z][y][x] = T_ACQUA
                             
-                        if self.matrice[z][y][x] == T_ERBA:
+                        if self.matrix[z][y][x] == T_ERBA:
                             if z < self.dimz-1:
                                 if y < self.dimy-1 and x < self.dimx -1:
-                                    if self.matrice[z+1][y][x] == T_ERBA:
-                                        if self.matrice[z][y+1][x] == T_ERBA and self.matrice[z][y][x+1] == T_ERBA:
-                                            self.matrice[z][y][x] = T_HIDE
+                                    if self.matrix[z+1][y][x] == T_ERBA:
+                                        if self.matrix[z][y+1][x] == T_ERBA and self.matrix[z][y][x+1] == T_ERBA:
+                                            self.matrix[z][y][x] = T_HIDE
                                             continue
                                 if z == Z_SEA:
                                     if y < self.dimy-1:
-                                        if self.matrice[z][y+1][x] == T_VOID:
-                                            self.matrice[z][y][x] = T_SABBIA
+                                        if self.matrix[z][y+1][x] == T_VOID:
+                                            self.matrix[z][y][x] = T_SABBIA
                                             continue
                                     if x < self.dimx-1:
-                                        if self.matrice[z][y][x+1] == T_VOID:
-                                            self.matrice[z][y][x] = T_SABBIA
+                                        if self.matrix[z][y][x+1] == T_VOID:
+                                            self.matrix[z][y][x] = T_SABBIA
                                             continue
                                     if x > 0:
-                                        if self.matrice[z][y][x-1] == T_VOID:
-                                            self.matrice[z][y][x] = T_SABBIA
+                                        if self.matrix[z][y][x-1] == T_VOID:
+                                            self.matrix[z][y][x] = T_SABBIA
                                             continue
                                     if y > 0:
-                                        if self.matrice[z][y-1][x] == T_VOID:
-                                            self.matrice[z][y][x] = T_SABBIA
+                                        if self.matrix[z][y-1][x] == T_VOID:
+                                            self.matrix[z][y][x] = T_SABBIA
                                             continue
-                                if z < Z_SEA and self.matrice[z+1][y][x] == T_VOID:
-                                    self.matrice[z][y][x] = T_SABBIA
+                                if z < Z_SEA and self.matrix[z+1][y][x] == T_VOID:
+                                    self.matrix[z][y][x] = T_SABBIA
                                     continue
-                                if self.matrice[z+1][y][x] != T_VOID:
-                                    self.matrice[z][y][x] = T_TERRA
+                                if self.matrix[z+1][y][x] != T_VOID:
+                                    self.matrix[z][y][x] = T_TERRA
                             if z >= Z_SNOW:# gestisci la neve
-                                if self.matrice[z][y][x] == T_ERBA:
-                                    self.matrice[z][y][x] = T_NEVE
+                                if self.matrix[z][y][x] == T_ERBA:
+                                    self.matrix[z][y][x] = T_NEVE
                             border_type = 0
-                            if self.matrice[z][y][x-1] == T_VOID:
+                            if self.matrix[z][y][x-1] == T_VOID:
                                 border_type = border_type | 1
-                            if self.matrice[z][y-1][x] == T_VOID:
+                            if self.matrix[z][y-1][x] == T_VOID:
                                 border_type = border_type | 2
-                            self.matrice[z][y][x] += '_'+str(border_type)
+                            self.matrix[z][y][x] += '_'+str(border_type)
                             
         else:
             self.get_dims()
 
-    def conservatore(self, num): #picklellatore per le matrici testuali
+    def conservatore(self, num): #"picklellatore" per le matrici testuali
         print "scrittura pickle in corso"
         for i in range(num):
             print "%3.2f %%" % (float(i*100.0/num)),"\r",
             nome = r"lib_grows/perlin_maps/collina"+str(i)+".txt"
-            self.matrice = {}
-            self.genera_montagna(W_WORLD,H_WORLD, nome)
-            pickle.dump( self.matrice, open( nome.split('.')[0]+'.pkl', "wb" ) )
+            self.matrix = {}
+            self.make_mountain(W_WORLD,H_WORLD, nome)
+            pickle.dump( self.matrix, open( nome.split('.')[0]+'.pkl', "wb" ) )
 
     def load_tile(self,element,z, side = 1): # side = 1: bottom, side = 0: top
         if element == T_VOID:
@@ -215,7 +215,9 @@ class World_maker(threading.Thread):
         background_final = Surface((width, height))
         background_final.set_colorkey(TRANSPARENCY)
         background_final.fill(TRANSPARENCY)
-        
+        #sea_background = Surface((width, height))
+        #sea_background.set_colorkey(TRANSPARENCY)
+        #sea_background.fill(TRANSPARENCY)
         for z in range(self.dimz):
             background = Surface((width, height)) #immagine con i tiles bassi
             foreground = Surface((width, height)) #immagine con i tiles alti
@@ -225,8 +227,9 @@ class World_maker(threading.Thread):
             foreground.set_colorkey(TRANSPARENCY)
             for y in range(self.dimy):
                 for x in range(self.dimx):
-                    tile    = self.load_tile(self.matrice[z][y][x],z,1)
-                    tile_up = self.load_tile(self.matrice[z][y][x],z,0)
+                    t_type  = self.matrix[z][y][x]
+                    tile    = self.load_tile(t_type,z,1)
+                    tile_up = self.load_tile(t_type,z,0)
                     if tile:
                         xo = width/2 + (x-y-1)*DX
                         yo = (x+y)*DY - z*DZ + dz_height
@@ -238,8 +241,10 @@ class World_maker(threading.Thread):
                         yo = (x+y)*DY - z*DZ + dz_height
                         tileRect = tile_up.get_rect()
                         tileRect.topleft = (int(xo),int(yo))
+                        #if t_type == T_ACQUA:
+                        #    sea_background.blit(tile_up,tileRect)
+                        #else:
                         foreground.blit(tile_up,tileRect)
-                        
                         
             background_final.blit(background,background.get_rect())
             background_final.blit(foreground,background.get_rect())
@@ -249,11 +254,13 @@ class World_maker(threading.Thread):
             data = Image.tostring(foreground, "RGBA")
             surf = Image.fromstring(data, (width, height), 'RGBA', False)
             Image.save(surf,r"../graphics/results/hill_"+str(z)+"_u.png")
-
+        #data = Image.tostring(sea_background, "RGBA")
+        #surf = Image.fromstring(data, (width, height), 'RGBA', False)
+        #Image.save(surf,r"../graphics/results/sea.png")
         Image.save(background_final,r"../graphics/results/all_hill.png")
-        pickle.dump( self.matrice, open( r"../graphics/results/"+self.pkl_name.split('/')[-1], "wb" ) )
+        pickle.dump( self.matrix, open( r"../graphics/results/"+self.pkl_name.split('/')[-1], "wb" ) )
         
-    def crea_montagne_perlin(self,num): #processo (lento) di creazione mappe con PerlinNoise
+    def make_perlin_mountains(self,num): #processo (lento) di creazione mappe con PerlinNoise
         print "[WORLD MAKER]: generation of perlin_maps\t"
         for k in xrange(num):
             print "%3.2f %%" % (float(k*100.0/num)),"\r",
@@ -271,9 +278,9 @@ class World_maker(threading.Thread):
 
     def start(self):# start Thread
         print self.name + ": start"
-        self.genera_montagna(W_WORLD,H_WORLD)
+        self.make_mountain(W_WORLD,H_WORLD)
         self.genera_immagini_chunk()
-        return self.matrice
+        return self.matrix
         
     def __del__(self):
         print self.name + ": complete creation\t"

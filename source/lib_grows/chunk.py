@@ -39,6 +39,5 @@ class Chunk():
         for z in xrange(dimz):
             for y in xrange(dimy):
                 for x in xrange(dimx):
-                    if self.matrice[z][y][x].startswith(T_ERBA):
-                        self.matrice[z][y][x] = ' '
-
+                    if walkable(self.matrice[z][y][x][0]):
+                        self.matrice[z][y][x] = FREE
